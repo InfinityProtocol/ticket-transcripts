@@ -1,4 +1,5 @@
 name: Upload Transcript
+
 on:
   repository_dispatch:
     types: [upload-transcript]
@@ -6,32 +7,67 @@ on:
 jobs:
   upload:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write # Permite escrita no repositório
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Save transcript
-        run: |
-          echo "${{ github.event.client_payload.file }}" | base64 -d > ${{ github.event.client_payload.filename }}
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
 
-      - name: Commit and push
+      - name: Decode and save transcript
+        env:
+          FILE_CONTENT: ${{ github.event.client_payload.file }}
+          FILE_NAME: ${{ github.event.client_payload.filename }}
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add ${{ github.event.client_payload.filename }}
-          git commit -m "Add transcript ${{ github.event.client_payload.filename }}"
-          git fetch origin main
-          git rebase origin/main
+          echo "$FILE_CONTENT" | base64 -d > "$FILE_NAME"
+          echo "Arquivo $FILE_NAME salvo com sucesso."
+
+      - name: Ensure loading.html exists
+        run: |
+          if [ -f 404.html ]; then
+            cp 404.html loading.html
+            echo "Copiado 404.html para loading.html"
+          else
+            echo "404.html não encontrado, criando loading.html padrão"
+            cat > loading.html << 'EOF'
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carregando Transcript</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 flex items-center justify-center h-screen">
+    <div class="text-center text-white">
+        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-blue-500 mx-auto mb-4"></div>
+        <h1 class="text-2xl font-semibold mb-2">Carregando Transcript...</h1>
+        <p class="text-lg">O histórico do ticket está sendo processado. Aguarde alguns minutos e recarregue a página.</p>
+        <button onclick="location.reload()" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded">
+            Recarregar
+        </button>
+    </div>
+</body>
+</html>
+EOF
+          fi
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .
+          git commit -m "Add transcript $FILE_NAME and ensure loading.html"
           git push
         env:
+          FILE_NAME: ${{ github.event.client_payload.filename }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true # Continua mesmo se houver conflito
 
       - name: Trigger GitHub Pages rebuild
         run: |
           curl -X POST \
-            -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ github.repository }}/pages/builds
