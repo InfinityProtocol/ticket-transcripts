@@ -6,6 +6,8 @@ on:
 jobs:
   upload:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Permite escrita no repositório
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -21,3 +23,5 @@ jobs:
           git add docs/${{ github.event.client_payload.filename }}
           git commit -m "Add transcript ${{ github.event.client_payload.filename }}"
           git push
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
