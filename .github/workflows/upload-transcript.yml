@@ -1,0 +1,23 @@
+name: Upload Transcript
+on:
+  repository_dispatch:
+    types: [upload-transcript]
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Save transcript
+        run: |
+          echo "${{ github.event.client_payload.file }}" | base64 -d > docs/${{ github.event.client_payload.filename }}
+
+      - name: Commit and push
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add docs/${{ github.event.client_payload.filename }}
+          git commit -m "Add transcript ${{ github.event.client_payload.filename }}"
+          git push
