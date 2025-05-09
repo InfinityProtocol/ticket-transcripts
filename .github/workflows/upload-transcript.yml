@@ -62,11 +62,15 @@ EOF
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add .
-          if git diff --staged --quiet; then
+          echo "Verificando mudanças no repositório..."
+          git status
+          if [ -z "$(git status --porcelain)" ]; then
             echo "Nenhuma mudança para commitar"
             exit 0
           fi
+          echo "Commitando mudanças..."
           git commit -m "Add transcript ${{ github.event.client_payload.filename }} and ensure loading.html"
+          echo "Enviando mudanças para o repositório..."
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
